@@ -8,10 +8,10 @@ namespace MusicPlayer
         Task Pause();
         Task Stop();
 
-        Task<LinkedListNode<Song>> Next();
-        Task<LinkedListNode<Song>> Previous();
+        Task Next();
+        Task Previous();
         Task Shuffle();
-        Task RepeatOne(Song track);
+        Task RepeatOne();
         Task RepeatAll();
     }
 }

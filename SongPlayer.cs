@@ -1,28 +1,53 @@
 ﻿
 
 
+using System.Collections.Generic;
+using System.Threading;
+
 namespace MusicPlayer
 {
     public class SongPlayer : ISongPlayer
     {
-        private readonly LinkedList<Song> _musics;
+        private readonly LinkedList<Song> _playList = new();
+        private LinkedListNode<Song>? _currentSongNode;
         private Song? _currentSong;
-        private readonly bool _isPlaying;
-        private readonly bool _isPaused;
+        private bool _isPlaying;
+        private bool _isPaused;
+        private bool _isStoped;
+        private bool _repeatAll;
+        private bool _repeatOne;
+        private CancellationTokenSource _cts;
 
-        public SongPlayer(LinkedList<Song> musics)
+        public SongPlayer(IEnumerable<Song> musics)
         {
-            _musics = musics;
-            _currentSong = _musics.First?.Value;
+            _playList = new LinkedList<Song>(musics);
+            _currentSongNode = _playList?.First;
+            _currentSong = _currentSongNode?.Value;
+            _cts = new CancellationTokenSource();
         }
-        public Task<LinkedListNode<Song>> Next()
+        public async Task Next()
         {
-            throw new NotImplementedException();
+            if (_repeatOne)
+            {
+                _currentSongNode = _currentSongNode?.Next ?? _playList.First;
+            }
+            if (_repeatAll)
+            {
+                _currentSongNode = _currentSongNode?.Next ?? _playList.First;
+            }
+            
+            
         }
 
-        public Task Pause()
+        public async Task Pause()
         {
-            throw new NotImplementedException();
+            
+            await _cts.CancelAsync();
+
+            var currentSong = _currentSongNode?.Value;
+            Console.WriteLine($"{currentSong?.Title} paused");
+            _isPaused = true;
+            _isPlaying = false;
         }
 
         public async Task Play()
@@ -33,27 +58,51 @@ namespace MusicPlayer
                 return;
             }
 
-            if (_isPlaying)
-                return;
 
-            Console.WriteLine($"Playing {_currentSong.Title}");
-            await Task.Delay(_currentSong.Duration*1000);
-            await Task.CompletedTask;
+            var currentSong = _currentSongNode?.Value;
+
+            Console.WriteLine($"Playing {currentSong?.Title}");
+            _isPlaying = true;
+
+            try
+            {
+                await Task.Delay(currentSong.Duration * 1000, _cts.Token);
+            }
+            catch (TaskCanceledException)
+            {
+                Console.WriteLine($"Playing is paused");
+            }
+            finally
+            {
+                _cts.Dispose();
+            }
+
+
         }
 
-        public Task<LinkedListNode<Song>> Previous()
+        public async Task Previous()
         {
-            throw new NotImplementedException();
+            await Stop();
+
+            if (_repeatAll)
+            {
+                _currentSongNode = _currentSongNode?.Previous ?? _playList.Last;
+            }
+
+            await Play();
         }
 
         public Task RepeatAll()
         {
-            throw new NotImplementedException();
+            _repeatAll = true;
+            return Task.CompletedTask;
         }
 
-        public Task RepeatOne(Song track)
+        public Task RepeatOne()
         {
-            throw new NotImplementedException();
+            _repeatOne = true;
+            _repeatAll = false;
+            return Task.CompletedTask;
         }
 
         public Task Shuffle()
@@ -61,9 +110,16 @@ namespace MusicPlayer
             throw new NotImplementedException();
         }
 
-        public Task Stop()
+        public async Task Stop()
         {
-            throw new NotImplementedException();
+            
+            await _cts.CancelAsync();
+
+            var currentSong = _currentSongNode?.Value;
+            Console.WriteLine($"{currentSong?.Title} stoped");
+            _isPaused = false;
+            _isPlaying = false;
+            _isStoped = true;
         }
     }
 }
