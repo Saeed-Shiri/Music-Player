@@ -2,16 +2,16 @@
 
 namespace MusicPlayer
 {
-    public interface IMusicPlayer
+    public interface ISongPlayer
     {
         Task Play();
         Task Pause();
         Task Stop();
 
-        Task<LinkedListNode<Music>> Next();
-        Task<LinkedListNode<Music>> Previous();
+        Task<LinkedListNode<Song>> Next();
+        Task<LinkedListNode<Song>> Previous();
         Task Shuffle();
-        Task RepeatOne(Music track);
+        Task RepeatOne(Song track);
         Task RepeatAll();
     }
 }
