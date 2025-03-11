@@ -4,12 +4,12 @@ namespace MusicPlayer
 {
     public class Song
     {
-        public Song(string title, int duration)
+        public Song(string title, int durationInSeconds)
         {
             Title = title;
-            Duration = duration;
+            DurationInSeconds = durationInSeconds;
         }
-        public int Duration { get; set; }
+        public int DurationInSeconds { get; set; }
         public string Title { get; set; }
     }
 }

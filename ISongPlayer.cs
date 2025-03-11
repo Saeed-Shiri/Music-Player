@@ -4,14 +4,16 @@ namespace MusicPlayer
 {
     public interface ISongPlayer
     {
-        Task Play();
-        Task Pause();
-        Task Stop();
+        //void AddTrack(Song song);
+        void SetPlaybackStrategy(IPlaybackStrategy strategy);
 
-        Task Next();
-        Task Previous();
-        Task Shuffle();
-        Task RepeatOne();
-        Task RepeatAll();
+        Task PlayAsync();
+        void Pause();
+        void Resume();
+        void Stop();
+
+        void NextTrack();
+        void PreviousTrack();
+
     }
 }

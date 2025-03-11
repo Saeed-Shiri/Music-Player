@@ -10,116 +10,95 @@ namespace MusicPlayer
     {
         private readonly LinkedList<Song> _playList = new();
         private LinkedListNode<Song>? _currentSongNode;
-        private Song? _currentSong;
-        private bool _isPlaying;
+        private IPlaybackStrategy _playbackStrategy = new SequentialPlayback();
         private bool _isPaused;
-        private bool _isStoped;
-        private bool _repeatAll;
-        private bool _repeatOne;
-        private CancellationTokenSource _cts;
+        private CancellationTokenSource? _cts;
 
-        public SongPlayer(IEnumerable<Song> musics)
+        public SongPlayer(IEnumerable<Song> songs)
         {
-            _playList = new LinkedList<Song>(musics);
-            _currentSongNode = _playList?.First;
-            _currentSong = _currentSongNode?.Value;
-            _cts = new CancellationTokenSource();
-        }
-        public async Task Next()
-        {
-            if (_repeatOne)
-            {
-                _currentSongNode = _currentSongNode?.Next ?? _playList.First;
-            }
-            if (_repeatAll)
-            {
-                _currentSongNode = _currentSongNode?.Next ?? _playList.First;
-            }
-            
-            
+            _playList = new LinkedList<Song>(songs);
+            _playbackStrategy = new SequentialPlayback();
+            _currentSongNode = _playList.First;
         }
 
-        public async Task Pause()
+        public void SetPlaybackStrategy(IPlaybackStrategy strategy)
         {
-            
-            await _cts.CancelAsync();
-
-            var currentSong = _currentSongNode?.Value;
-            Console.WriteLine($"{currentSong?.Title} paused");
-            _isPaused = true;
-            _isPlaying = false;
+            _playbackStrategy = strategy;
         }
 
-        public async Task Play()
+        public async Task PlayAsync()
         {
-            if (_currentSong == null)
+            if (_currentSongNode == null)
             {
-                Console.WriteLine($"Playlist is empty");
+                Console.WriteLine("🎵 لیست آهنگ‌ها خالی است.");
                 return;
             }
 
+            _cts = new CancellationTokenSource();
+            CancellationToken token = _cts.Token;
 
-            var currentSong = _currentSongNode?.Value;
-
-            Console.WriteLine($"Playing {currentSong?.Title}");
-            _isPlaying = true;
-
-            try
+            while (_currentSongNode != null)
             {
-                await Task.Delay(currentSong.Duration * 1000, _cts.Token);
+                Console.WriteLine($"▶️ در حال پخش: {_currentSongNode.Value.Title}");
+
+                for (int i = 0; i < _currentSongNode.Value.DurationInSeconds; i++)
+                {
+                    if (token.IsCancellationRequested) return;
+                    if (_isPaused)
+                    {
+                        Console.WriteLine("⏸ پخش متوقف شد.");
+                        await Task.Delay(Timeout.Infinite, token);
+                    }
+
+                    Console.Write(".");
+                    await Task.Delay(1000, token); 
+                }
+
+                _currentSongNode = _playbackStrategy.GetNextTrack(_currentSongNode, _playList);
             }
-            catch (TaskCanceledException)
+        }
+
+        public void Stop()
+        {
+            _cts?.Cancel();
+            Console.WriteLine("⏹ پخش متوقف شد.");
+        }
+
+        public void Pause()
+        {
+            _isPaused = true;
+        }
+
+        public void Resume()
+        {
+            if (_isPaused)
             {
-                Console.WriteLine($"Playing is paused");
+                _isPaused = false;
+                _cts?.Cancel();
+                _cts = new CancellationTokenSource();
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await PlayAsync();
+                    }
+                    catch (TaskCanceledException) { }
+                });
             }
-            finally
-            {
-                _cts.Dispose();
-            }
-
-
         }
 
-        public async Task Previous()
+        public void NextTrack()
         {
-            await Stop();
-
-            if (_repeatAll)
-            {
-                _currentSongNode = _currentSongNode?.Previous ?? _playList.Last;
-            }
-
-            await Play();
+            _cts?.Cancel();
+            _currentSongNode = _playbackStrategy.GetNextTrack(_currentSongNode, _playList);
+            Task.Run(() => PlayAsync());
         }
 
-        public Task RepeatAll()
+        public void PreviousTrack()
         {
-            _repeatAll = true;
-            return Task.CompletedTask;
-        }
-
-        public Task RepeatOne()
-        {
-            _repeatOne = true;
-            _repeatAll = false;
-            return Task.CompletedTask;
-        }
-
-        public Task Shuffle()
-        {
-            throw new NotImplementedException();
-        }
-
-        public async Task Stop()
-        {
-            
-            await _cts.CancelAsync();
-
-            var currentSong = _currentSongNode?.Value;
-            Console.WriteLine($"{currentSong?.Title} stoped");
-            _isPaused = false;
-            _isPlaying = false;
-            _isStoped = true;
+            _cts?.Cancel();
+            _currentSongNode = _currentSongNode?.Previous ?? _playList.Last;
+            Task.Run(() => PlayAsync());
         }
     }
 }
